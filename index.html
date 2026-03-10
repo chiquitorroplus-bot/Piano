@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Piano Chords</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+:root{--bg:#0e0e14;--surface:#16161f;--card:#1c1c28;--border:#2a2a3d;--gold:#c9a84c;--gold-light:#e8c96a;--green:#4caf7d;--red:#e05c6a;--white:#f0ede6;--muted:#6b6b8a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;}
+.layout{position:relative;z-index:1;display:grid;grid-template-columns:190px 1fr;grid-template-rows:auto 1fr;min-height:100vh;}
+header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid var(--border);background:var(--surface);}
+header h1{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold);letter-spacing:0.02em;}
+.midi-badge{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:0.73rem;color:var(--muted);transition:all 0.3s;}
+.midi-badge.connected{border-color:var(--green);color:var(--green);}
+.midi-badge.error{border-color:var(--red);color:var(--red);}
+.midi-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.midi-badge.connected .midi-dot{animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.sidebar{grid-column:1;grid-row:2;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:10px 8px;display:flex;flex-direction:column;gap:2px;}
+.sidebar-title{font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:10px 8px 4px;margin-top:4px;}
+.sidebar-title:first-child{margin-top:0;}
+.cat-btn{width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:7px;padding:6px 9px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.78rem;cursor:pointer;transition:all 0.15s;line-height:1.3;}
+.cat-btn:hover{background:var(--card);border-color:var(--border);}
+.cat-btn.active{background:var(--card);border-color:var(--gold);color:var(--gold);}
+.cat-btn .cat-count{display:block;font-size:0.62rem;color:var(--muted);margin-top:1px;}
+.cat-btn.active .cat-count{color:var(--gold-light);opacity:0.7;}
+.main{grid-column:2;grid-row:2;padding:18px 22px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;}
+.mode-tabs{display:flex;gap:5px;margin-bottom:14px;background:var(--card);border-radius:10px;padding:4px;border:1px solid var(--border);}
+.mode-tab{flex:1;padding:7px 14px;border:none;border-radius:7px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.8rem;cursor:pointer;transition:all 0.2s;}
+.mode-tab.active{background:var(--gold);color:#1a1000;font-weight:600;}
+.progress-wrap{width:100%;max-width:660px;margin-bottom:14px;}
+.progress-label{font-size:0.7rem;color:var(--muted);margin-bottom:5px;}
+.progress-bar{width:100%;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:2px;transition:width 0.5s ease;}
+.chord-card{width:100%;max-width:660px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px 20px;margin-bottom:12px;transition:border-color 0.3s;}
+.chord-card.correct{border-color:var(--green);box-shadow:0 0 28px rgba(76,175,125,0.14);}
+.chord-card.wrong{border-color:var(--red);animation:shake 0.3s ease;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.chord-name{font-family:'Playfair Display',serif;font-size:clamp(1.7rem,4.5vw,2.6rem);color:var(--gold);text-align:center;margin-bottom:2px;}
+.chord-type{text-align:center;color:var(--muted);font-size:0.82rem;margin-bottom:18px;letter-spacing:0.08em;text-transform:uppercase;}
+.staff-container{display:flex;flex-direction:column;gap:4px;align-items:center;width:100%;margin-bottom:18px;}
+.staff-label{font-size:0.62rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;align-self:flex-start;margin-left:2px;margin-top:6px;}
+.staff-label:first-child{margin-top:0;}
+.staff-svg{width:100%;max-width:460px;}
+.keyboard-container{display:flex;justify-content:center;margin-bottom:8px;overflow-x:auto;width:100%;}
+.piano-keyboard{position:relative;height:110px;flex-shrink:0;}
+.white-key{height:110px;background:linear-gradient(180deg,#f5f0e8 0%,#e8e0d0 100%);border-radius:0 0 6px 6px;border:1px solid #bbb;position:absolute;cursor:pointer;transition:background 0.1s;}
+.white-key.highlight{background:linear-gradient(180deg,var(--gold-light) 0%,var(--gold) 100%);border-color:var(--gold);}
+.white-key.pressed{background:linear-gradient(180deg,#a8e6c0 0%,var(--green) 100%);border-color:var(--green);}
+.white-key.wrong-press{background:linear-gradient(180deg,#f5a0a8 0%,var(--red) 100%);border-color:var(--red);}
+.black-key{height:68px;background:linear-gradient(180deg,#2a2a2a 0%,#111 100%);border-radius:0 0 4px 4px;border:1px solid #000;position:absolute;top:0;z-index:2;cursor:pointer;transition:background 0.1s;}
+.black-key.highlight{background:linear-gradient(180deg,var(--gold-light) 0%,#a07820 100%);border-color:var(--gold);}
+.black-key.pressed{background:linear-gradient(180deg,#a8e6c0 0%,#2a7a50 100%);border-color:var(--green);}
+.black-key.wrong-press{background:linear-gradient(180deg,#f5a0a8 0%,#8a2030 100%);border-color:var(--red);}
+.notes-label{text-align:center;font-size:0.76rem;color:var(--muted);margin-bottom:14px;}
+.notes-label span{display:inline-block;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 7px;margin:2px;font-size:0.78rem;color:var(--gold);font-family:'Playfair Display',serif;}
+.feedback{text-align:center;min-height:26px;font-size:0.92rem;font-weight:500;margin-bottom:10px;}
+.feedback.correct{color:var(--green);}
+.feedback.wrong{color:var(--red);}
+.btn-next{display:block;width:100%;background:linear-gradient(135deg,var(--gold) 0%,var(--gold-light) 100%);color:#1a1000;border:none;border-radius:11px;padding:12px;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.04em;transition:opacity 0.2s,transform 0.1s;opacity:0;pointer-events:none;}
+.btn-next.visible{opacity:1;pointer-events:all;}
+.btn-next:active{transform:scale(0.98);}
+.practice-hint{text-align:center;font-size:0.7rem;color:var(--muted);margin-top:6px;}
+.practice-hint a{color:var(--gold);cursor:pointer;text-decoration:underline;}
+.completion{display:none;text-align:center;padding:40px 20px;width:100%;max-width:660px;}
+.completion.show{display:block;}
+.completion h2{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--gold);margin-bottom:10px;}
+.completion p{color:var(--muted);margin-bottom:20px;}
+.btn-restart{background:var(--card);border:1px solid var(--gold);color:var(--gold);border-radius:11px;padding:11px 28px;font-family:'DM Sans',sans-serif;font-size:0.9rem;cursor:pointer;transition:background 0.2s;}
+.btn-restart:hover{background:var(--gold);color:#1a1000;}
+.scale-card{width:100%;max-width:660px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px 20px;margin-bottom:12px;}
+.scale-card h3{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--gold);margin-bottom:2px;}
+.scale-subtitle{color:var(--muted);font-size:0.8rem;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.08em;}
+.scale-degrees{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.degree-pill{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:0.76rem;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:36px;}
+.degree-pill .deg-num{font-size:0.58rem;color:var(--muted);}
+.degree-pill .deg-note{color:var(--gold);font-family:'Playfair Display',serif;font-size:0.92rem;}
+.root-selector{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:12px;width:100%;max-width:660px;}
+.root-btn{background:var(--card);border:1px solid var(--border);color:var(--white);border-radius:7px;padding:5px 11px;font-family:'DM Sans',sans-serif;font-size:0.76rem;cursor:pointer;transition:all 0.15s;}
+.root-btn:hover{border-color:var(--gold);color:var(--gold);}
+.root-btn.active{background:var(--gold);border-color:var(--gold);color:#1a1000;font-weight:600;}
+.type-toggle{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 12px;font-family:'DM Sans',sans-serif;font-size:0.78rem;cursor:pointer;transition:all 0.15s;}
+.type-toggle:hover{border-color:var(--gold);color:var(--white);}
+.type-toggle.selected{background:rgba(201,168,76,0.15);border-color:var(--gold);color:var(--gold);}
+.exam-hint{text-align:center;font-size:0.82rem;color:var(--muted);padding:16px;font-style:italic;}
+@keyframes reveal{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+.reveal-anim{animation:reveal 0.4s ease;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <header>
+    <h1>Piano Chords</h1>
+    <div class="midi-badge" id="midiBadge"><div class="midi-dot"></div><span id="midiStatus">Buscando MIDI...</span></div>
+  </header>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="setMode('chord')">Diccionario</button>
+      <button class="mode-tab" onclick="setMode('scale')">Escalas</button>
+      <button class="mode-tab" onclick="setMode('dynamic')">Dinámico</button>
+      <button class="mode-tab" onclick="setMode('exam')">Examen</button>
+    </div>
+
+    <!-- CHORD MODE -->
+    <div id="chordMode" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+      <div class="root-selector" id="chordRootSelector"></div>
+      <div class="progress-wrap">
+        <div class="progress-label" id="progressLabel">Acorde 1 de 12</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:8.3%"></div></div>
+      </div>
+      <div class="chord-card" id="chordCard">
+        <div class="chord-name" id="chordName">C</div>
+        <div class="chord-type" id="chordType">Do Mayor</div>
+        <div class="staff-container">
+          <div class="staff-label">Clave de Sol</div>
+          <svg class="staff-svg" id="staffTreble" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="staff-label">Clave de Fa</div>
+          <svg class="staff-svg" id="staffBass" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="keyboard-container"><div class="piano-keyboard" id="pianoKeyboard"></div></div>
+        <div class="notes-label" id="notesLabel"></div>
+        <div class="feedback" id="feedback"></div>
+        <button class="btn-next" id="btnNext" onclick="nextChord()">Siguiente acorde &rarr;</button>
+      </div>
+      <div class="practice-hint">Sin MIDI: <a onclick="simulateCorrect()">Simular acorde correcto</a></div>
+      <div class="completion" id="completionScreen">
+        <h2>Excelente! &#127929;</h2>
+        <p>Completaste todos los acordes de esta categoria.</p>
+        <button class="btn-restart" onclick="restartCategory()">Repetir</button>
+      </div>
+    </div>
+
+    <!-- DYNAMIC MODE -->
+    <div id="dynamicMode" style="width:100%;display:none;flex-direction:column;align-items:center;">
+      <!-- Setup screen -->
+      <div id="dynamicSetup" style="width:100%;max-width:660px;">
+        <div class="scale-card" style="margin-bottom:12px;">
+          <h3 style="margin-bottom:4px;">Modo Dinámico</h3>
+          <div class="scale-subtitle">Selecciona los tipos de acorde a practicar</div>
+          <div id="dynamicTypeSelector" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;"></div>
+          <div class="scale-subtitle" style="margin-bottom:8px;">Tonalidades</div>
+          <div id="dynamicKeySelector" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px;"></div>
+          <div class="scale-subtitle" style="margin-bottom:8px;">Tipo de secuencia</div>
+          <div style="display:flex;gap:8px;margin-bottom:20px;">
+            <button class="root-btn active" id="dynSeqRandom" onclick="setDynSeq('random')">Aleatoria</button>
+            <button class="root-btn" id="dynSeqProg" onclick="setDynSeq('prog')">Progresiones (ii-V-I)</button>
+          </div>
+          <button class="btn-next visible" style="max-width:300px;margin:0 auto;" onclick="startDynamic()">Comenzar práctica →</button>
+        </div>
+      </div>
+      <!-- Practice screen -->
+      <div id="dynamicPractice" style="display:none;width:100%;flex-direction:column;align-items:center;">
+        <div class="progress-wrap">
+          <div class="progress-label" id="dynProgressLabel">Acorde 1</div>
+          <div class="progress-bar"><div class="progress-fill" id="dynProgressFill" style="width:0%"></div></div>
+        </div>
+        <div class="chord-card" id="dynChordCard">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">
+            <div>
+              <div class="chord-name" id="dynChordName">C</div>
+              <div class="chord-type" id="dynChordType">Do Mayor</div>
+            </div>
+            <div id="dynProgBadge" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:0.72rem;color:var(--muted);text-align:right;line-height:1.5;"></div>
+          </div>
+          <div class="staff-container">
+            <div class="staff-label">Clave de Sol</div>
+            <svg class="staff-svg" id="staffDynTreble" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+            <div class="staff-label">Clave de Fa</div>
+            <svg class="staff-svg" id="staffDynBass" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <div class="keyboard-container"><div class="piano-keyboard" id="pianoKeyboardDyn"></div></div>
+          <div class="notes-label" id="dynNotesLabel"></div>
+          <div class="feedback" id="dynFeedback"></div>
+          <button class="btn-next" id="dynBtnNext" onclick="nextDynChord()">Siguiente acorde →</button>
+        </div>
+        <div class="practice-hint">Sin MIDI: <a onclick="simulateDynCorrect()">Simular correcto</a> &nbsp;|&nbsp; <a onclick="setMode('dynamic')">Cambiar configuración</a></div>
+      </div>
+    </div>
+
+<!-- EXAM MODE -->
+    <div id="examMode" style="width:100%;display:none;flex-direction:column;align-items:center;">
+      <div class="root-selector" id="examRootSelector"></div>
+      <div class="progress-wrap" style="max-width:660px;">
+        <div class="progress-label" id="examProgressLabel">Acorde 1 de 12</div>
+        <div class="progress-bar"><div class="progress-fill" id="examProgressFill" style="width:8.3%"></div></div>
+      </div>
+      <div class="chord-card" id="examCard">
+        <div class="chord-name" id="examChordName">C</div>
+        <div class="chord-type" id="examChordType">Do Mayor</div>
+        <!-- Empty staff placeholder shown before answer -->
+        <div id="examStaffEmpty" class="staff-container" style="margin-bottom:18px;">
+          <div class="staff-label">Clave de Sol</div>
+          <svg class="staff-svg" id="staffExamEmptyT" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="staff-label">Clave de Fa</div>
+          <svg class="staff-svg" id="staffExamEmptyB" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <!-- Revealed staff shown after correct answer -->
+        <div id="examStaffReveal" class="staff-container" style="display:none;margin-bottom:18px;">
+          <div class="staff-label">Clave de Sol</div>
+          <svg class="staff-svg" id="staffExamTreble" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="staff-label">Clave de Fa</div>
+          <svg class="staff-svg" id="staffExamBass" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="keyboard-container"><div class="piano-keyboard" id="pianoKeyboardExam"></div></div>
+        <div class="notes-label" id="examNotesLabel" style="color:var(--surface);">placeholder</div>
+        <div class="feedback" id="examFeedback"></div>
+        
+      </div>
+      <div class="practice-hint">Sin MIDI: <a onclick="simulateExamCorrect()">Simular correcto</a></div>
+      <div class="completion" id="examCompletionScreen">
+        <h2>¡Examen completado! 🎓</h2>
+        <div id="examScore" style="font-size:1.1rem;color:var(--gold);margin-bottom:8px;"></div>
+        <p id="examScoreDetail" style="color:var(--muted);margin-bottom:20px;"></p>
+        <button class="btn-restart" onclick="restartExam()">Repetir examen</button>
+      </div>
+    </div>
+
+<!-- SCALE MODE -->
+    <div id="scaleMode" style="width:100%;display:none;flex-direction:column;align-items:center;">
+      <div class="root-selector" id="rootSelector"></div>
+      <div class="scale-card">
+        <h3 id="scaleName">C Mayor</h3>
+        <div class="scale-subtitle" id="scaleSubtitle">Escala Mayor - Do</div>
+        <div class="scale-degrees" id="scaleDegrees"></div>
+        <div class="staff-container">
+          <div class="staff-label">Clave de Sol</div>
+          <svg class="staff-svg" id="staffScaleTreble" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="staff-label">Clave de Fa</div>
+          <svg class="staff-svg" id="staffScaleBass" viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="keyboard-container"><div class="piano-keyboard" id="pianoKeyboardScale"></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const ROOT_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const ROOT_FULL  = ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+
+const CHORD_TYPES = [
+  {id:'major', label:'Mayor',       short:'',     formula:[0,4,7],    suffix:'Mayor'},
+  {id:'minor', label:'Menor',       short:'m',    formula:[0,3,7],    suffix:'menor'},
+  {id:'aug',   label:'Aumentado',   short:'aug',  formula:[0,4,8],    suffix:'aum.'},
+  {id:'dim',   label:'Disminuido',  short:'dim',  formula:[0,3,6],    suffix:'dim.'},
+  {id:'sus2',  label:'Sus2',        short:'sus2', formula:[0,2,7],    suffix:'sus2'},
+  {id:'sus4',  label:'Sus4',        short:'sus4', formula:[0,5,7],    suffix:'sus4'},
+  {id:'dom7',  label:'Dom. 7',      short:'7',    formula:[0,4,7,10], suffix:'Dom.7'},
+  {id:'maj7',  label:'Mayor 7',     short:'maj7', formula:[0,4,7,11], suffix:'Maj7'},
+  {id:'min7',  label:'Menor 7',     short:'m7',   formula:[0,3,7,10], suffix:'m7'},
+  {id:'dim7',  label:'Dim. 7',      short:'dim7', formula:[0,3,6,9],  suffix:'dim7'},
+  {id:'hdim7', label:'Semi-dim.',   short:'m7b5', formula:[0,3,6,10], suffix:'o7'},
+  {id:'aug7',  label:'Aum. 7',      short:'aug7', formula:[0,4,8,10], suffix:'aug7'},
+];
+
+const SCALE_TYPES = [
+  {id:'major',  label:'Mayor',         formula:[0,2,4,5,7,9,11],  degrees:['I','II','III','IV','V','VI','VII']},
+  {id:'minor',  label:'Menor natural', formula:[0,2,3,5,7,8,10],  degrees:['I','II','III','IV','V','VI','VII']},
+  {id:'hminor', label:'Menor arm.',    formula:[0,2,3,5,7,8,11],  degrees:['I','II','III','IV','V','VI','VII']},
+  {id:'pent_M', label:'Pent. Mayor',   formula:[0,2,4,7,9],       degrees:['I','II','III','V','VI']},
+  {id:'pent_m', label:'Pent. menor',   formula:[0,3,5,7,10],      degrees:['I','III','IV','V','VII']},
+  {id:'blues',  label:'Blues',         formula:[0,3,5,6,7,10],    degrees:['I','III','IV','bV','V','VII']},
+  {id:'dorian', label:'Dorica',        formula:[0,2,3,5,7,9,10],  degrees:['I','II','III','IV','V','VI','VII']},
+  {id:'phryg',  label:'Frigia',        formula:[0,1,3,5,7,8,10],  degrees:['I','II','III','IV','V','VI','VII']},
+  {id:'lydian', label:'Lidia',         formula:[0,2,4,6,7,9,11],  degrees:['I','II','III','IV','V','VI','VII']},
+  {id:'mixo',   label:'Mixolidia',     formula:[0,2,4,5,7,9,10],  degrees:['I','II','III','IV','V','VI','VII']},
+];
+
+function buildChordList(typeId, rootFilter) {
+  const type = CHORD_TYPES.find(t => t.id === typeId);
+  const roots = (rootFilter >= 0) ? [rootFilter] : ROOT_NAMES.map((_,i) => i);
+  return roots.map(ri => {
+    const pitches = type.formula.map(iv => (ri + iv) % 12);
+    const baseOct = ri >= 8 ? 4 : 5;
+    const rootMidi = baseOct * 12 + ri;
+    const displayNotes = type.formula.map(iv => rootMidi + iv);
+    return { name: ROOT_NAMES[ri] + type.short, fullName: ROOT_FULL[ri] + ' ' + type.suffix, pitches, displayNotes };
+  });
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let currentMode = 'chord';
+let currentTypeId = 'major';
+let currentList = [];
+let currentIndex = 0;
+let pressedNotes = new Set();
+let chordCorrect = false;
+let midiAccess = null;
+let currentScaleTypeId = 'major';
+let currentScaleRoot = 0;
+let currentChordRoot = -1; // -1 = all roots
+
+// Dynamic mode state
+let dynSelectedTypes = new Set(['major']);
+let dynSelectedKeys  = new Set([0,2,4,5,7,9,11]); // C D E F G A B
+let dynSequence      = 'random'; // 'random' | 'prog'
+let dynList          = [];
+let dynIndex         = 0;
+let dynCorrect       = false;
+let dynPressedNotes  = new Set();
+
+// Exam mode state
+let examList         = [];
+let examIndex        = 0;
+let examCorrect      = false;
+let examPressedNotes = new Set();
+let examScore        = 0;
+let examChordRoot    = -1;
+
+// ============================================================
+// PIANO KEYBOARD  C3(48) - E5(76)
+// ============================================================
+const START_MIDI=48, END_MIDI=76;
+const WHITE_SEMITONES=[0,2,4,5,7,9,11];
+const BLACK_SEMITONES=[1,3,6,8,10];
+const WW=34, WG=2, STEP=WW+WG;
+
+function buildKeyboard(id) {
+  const kb = document.getElementById(id);
+  kb.innerHTML=''; kb.style.position='relative';
+  const wMap={};
+  let wi=0;
+  for(let m=START_MIDI;m<=END_MIDI;m++){
+    const pc=m%12;
+    if(!WHITE_SEMITONES.includes(pc)) continue;
+    const x=wi*STEP;
+    const el=document.createElement('div');
+    el.className='white-key'; el.dataset.midi=m;
+    el.style.cssText='position:absolute;left:'+x+'px;width:'+WW+'px;';
+    if(pc===0){
+      const lbl=document.createElement('span');
+      lbl.textContent='C'+(Math.floor(m/12)-1);
+      lbl.style.cssText='font-size:.52rem;color:#999;position:absolute;bottom:5px;left:50%;transform:translateX(-50%);pointer-events:none';
+      el.appendChild(lbl);
+    }
+    kb.appendChild(el); wMap[m]=x; wi++;
+  }
+  kb.style.width=(wi*STEP-WG)+'px'; kb.style.height='110px';
+  for(let m=START_MIDI;m<=END_MIDI;m++){
+    const pc=m%12;
+    if(!BLACK_SEMITONES.includes(pc)) continue;
+    const lx=wMap[m-1], rx=wMap[m+1];
+    if(lx==null||rx==null) continue;
+    const bw=22, bx=(lx+WW+rx)/2-bw/2;
+    const el=document.createElement('div');
+    el.className='black-key'; el.dataset.midi=m;
+    el.style.cssText='position:absolute;left:'+bx+'px;width:'+bw+'px;';
+    kb.appendChild(el);
+  }
+  return wMap;
+}
+
+function getDisplayMidis(pitches) {
+  const CENTER=60, rootPc=pitches[0];
+  let best={oct:4,dist:999};
+  for(let oct=2;oct<=5;oct++){
+    const m=oct*12+rootPc;
+    if(m>=START_MIDI&&m<=END_MIDI){
+      const d=Math.abs(m-CENTER);
+      if(d<best.dist) best={oct,dist:d};
+    }
+  }
+  const root=best.oct*12+rootPc;
+  return pitches.map(pc=>{let m=best.oct*12+pc; if(m<root)m+=12; return m;});
+}
+
+function highlightKeys(kbId, pitches, pressed) {
+  const disp=getDisplayMidis(pitches);
+  document.getElementById(kbId).querySelectorAll('.white-key,.black-key').forEach(k=>{
+    const m=parseInt(k.dataset.midi), pc=m%12;
+    k.classList.remove('highlight','pressed','wrong-press');
+    if(pressed&&pressed.has(m)&&pitches.includes(pc))      k.classList.add('pressed');
+    else if(pressed&&pressed.has(m)&&!pitches.includes(pc)) k.classList.add('wrong-press');
+    else if(disp.includes(m))                               k.classList.add('highlight');
+  });
+}
+
+function highlightScaleKeys(kbId, pitches) {
+  // Find one clean octave: root note closest to C4(60), then pitches ascending from there
+  const rootPc = pitches[0];
+  // Pick the root MIDI closest to 60 that's in our keyboard range
+  let rootMidi = null;
+  let bestDist = 999;
+  for(let m = 48; m <= 76; m++) {
+    if(m % 12 === rootPc) {
+      const d = Math.abs(m - 60);
+      if(d < bestDist) { bestDist = d; rootMidi = m; }
+    }
+  }
+  // Build the one-octave set: each pitch assigned to its nearest midi >= rootMidi
+  const displaySet = new Set();
+  pitches.forEach(pc => {
+    let m = rootMidi + ((pc - rootPc + 12) % 12);
+    displaySet.add(m);
+  });
+  document.getElementById(kbId).querySelectorAll('.white-key,.black-key').forEach(k=>{
+    k.classList.remove('highlight','pressed','wrong-press');
+    if(displaySet.has(parseInt(k.dataset.midi))) k.classList.add('highlight');
+  });
+}
+
+// ============================================================
+// STAFF DRAWING
+// ============================================================
+// ── shared: draw 5 staff lines ─────────────────────────────
+function drawStaffLines(svg, staffBottom, lineSpacing, W) {
+  for(let i = 0; i < 5; i++) {
+    const y = staffBottom - i * lineSpacing;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1','52'); line.setAttribute('x2',(W-20)+'');
+    line.setAttribute('y1',y+''); line.setAttribute('y2',y+'');
+    line.setAttribute('stroke','#5a5a7a'); line.setAttribute('stroke-width','1.2');
+    svg.appendChild(line);
+  }
+}
+
+// ── draw one note ────────────────────────────────────────────────────────────
+// e4refY : y pixel where E4 would sit (each clef passes its own value)
+// visualStaffBottom / staffTop : real pixel bounds of the 5 staff lines (for ledgers)
+function drawNote(svg, midi, x, e4refY, visualStaffBottom, staffTop, lineSpacing, H, showLabel) {
+  const semiToDia = [0,0,1,1,2,3,3,4,4,5,5,6];
+  const absDia = (m) => Math.floor(m/12)*7 + semiToDia[m%12];
+  const steps = absDia(midi) - absDia(64); // diatonic steps above E4
+  const y = e4refY - steps * (lineSpacing / 2);
+
+  const pc = midi % 12;
+  const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const SHARP_PCS  = new Set([1,3,6,8,10]);
+
+  // Ledger lines below the staff (only when note is below bottom line)
+  for(let ly = visualStaffBottom + lineSpacing; ly <= y + 1; ly += lineSpacing) {
+    const ll = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ll.setAttribute('x1',(x-12)+''); ll.setAttribute('x2',(x+12)+'');
+    ll.setAttribute('y1',ly+''); ll.setAttribute('y2',ly+'');
+    ll.setAttribute('stroke','#c9a84c'); ll.setAttribute('stroke-width','1.5');
+    svg.appendChild(ll);
+  }
+  // Ledger lines above the staff
+  for(let ly = staffTop - lineSpacing; ly >= y - 1; ly -= lineSpacing) {
+    const ll = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ll.setAttribute('x1',(x-12)+''); ll.setAttribute('x2',(x+12)+'');
+    ll.setAttribute('y1',ly+''); ll.setAttribute('y2',ly+'');
+    ll.setAttribute('stroke','#c9a84c'); ll.setAttribute('stroke-width','1.5');
+    svg.appendChild(ll);
+  }
+
+  if(SHARP_PCS.has(pc)) {
+    const acc = document.createElementNS('http://www.w3.org/2000/svg','text');
+    acc.setAttribute('x',(x-17)+''); acc.setAttribute('y',(y+5)+'');
+    acc.setAttribute('font-size','15'); acc.setAttribute('fill','#e8c96a');
+    acc.setAttribute('font-family','serif'); acc.textContent='#';
+    svg.appendChild(acc);
+  }
+
+  const ellipse = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+  ellipse.setAttribute('cx',x+''); ellipse.setAttribute('cy',y+'');
+  ellipse.setAttribute('rx','8'); ellipse.setAttribute('ry','5.5');
+  ellipse.setAttribute('fill','#c9a84c');
+  svg.appendChild(ellipse);
+
+  const midStaff = visualStaffBottom - 2 * lineSpacing;
+  const stemDir = y >= midStaff ? -1 : 1;
+  const stemX = stemDir === -1 ? x + 7 : x - 7;
+  const stem = document.createElementNS('http://www.w3.org/2000/svg','line');
+  stem.setAttribute('x1',stemX+''); stem.setAttribute('x2',stemX+'');
+  stem.setAttribute('y1',y+''); stem.setAttribute('y2',(y+stemDir*30)+'');
+  stem.setAttribute('stroke','#c9a84c'); stem.setAttribute('stroke-width','1.8');
+  svg.appendChild(stem);
+
+  if(showLabel) {
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x',x+''); label.setAttribute('y',(H-5)+'');
+    label.setAttribute('text-anchor','middle');
+    label.setAttribute('font-size','11'); label.setAttribute('fill','#5a5a7a');
+    label.setAttribute('font-family','DM Sans, sans-serif');
+    label.textContent = NOTE_NAMES[pc] + (Math.floor(midi/12)-1);
+    svg.appendChild(label);
+  }
+}
+
+// ── TREBLE CLEF (Clave de Sol) ── bottom line = E4 (midi 64) ─────────────────
+
+function drawTrebleStaff(svgId, notes) {
+  const svg=document.getElementById(svgId); svg.innerHTML='';
+  const W=460,H=130,ls=10,sb=75,st=sb-4*ls;
+  drawStaffLines(svg,sb,ls,W);
+  const clef=document.createElementNS('http://www.w3.org/2000/svg','text');
+  clef.setAttribute('x','8'); clef.setAttribute('y',(sb+14)+'');
+  clef.setAttribute('font-size','80'); clef.setAttribute('fill','#7a7a9a');
+  clef.setAttribute('font-family','serif'); clef.textContent='\u{1D11E}';
+  svg.appendChild(clef);
+  const xs=notes.length<=4?[130,200,270,340]:null;
+  const startX=70, sp=(W-startX-20)/notes.length;
+  notes.forEach((m,i)=>{
+    const x=xs?xs[i]:startX+i*sp+sp/2;
+    drawNote(svg,m,x,sb,sb,st,ls,H,true);
+  });
+}
+
+function drawBassStaff(svgId, notes) {
+  const svg=document.getElementById(svgId); svg.innerHTML='';
+  const W=460,H=130,ls=10,vsb=75,st=vsb-4*ls;
+  const semiToDia=[0,0,1,1,2,3,3,4,4,5,5,6];
+  const absDia=m=>Math.floor(m/12)*7+semiToDia[m%12];
+  const e4ref=vsb+(absDia(43)-absDia(64))*(ls/2);
+  drawStaffLines(svg,vsb,ls,W);
+  const clef=document.createElementNS('http://www.w3.org/2000/svg','text');
+  clef.setAttribute('x','10'); clef.setAttribute('y',(vsb-ls*1.5)+'');
+  clef.setAttribute('font-size','52'); clef.setAttribute('fill','#7a7a9a');
+  clef.setAttribute('font-family','serif'); clef.textContent='\u{1D122}';
+  svg.appendChild(clef);
+  // Place notes near C3 region, ascending
+  const tgt=48;
+  let bn=notes.map(m=>{const pc=m%12;let best=pc+12;for(let o=1;o<=4;o++){const c=o*12+pc;if(Math.abs(c-tgt)<Math.abs(best-tgt))best=c;}return best;});
+  bn.sort((a,b)=>a-b);
+  for(let i=1;i<bn.length;i++) if(bn[i]<=bn[i-1]) bn[i]=bn[i-1]+1;
+  const xs=bn.length<=4?[130,200,270,340]:null;
+  const startX=70, sp=(W-startX-20)/bn.length;
+  bn.forEach((m,i)=>{
+    const x=xs?xs[i]:startX+i*sp+sp/2;
+    drawNote(svg,m,x,e4ref,vsb,st,ls,H,false);
+  });
+}
+
+function drawChordStaff(notes) {
+  drawTrebleStaff('staffTreble', notes);
+  drawBassStaff('staffBass', notes);
+}
+
+function drawScaleStaff(pitches, rootPc) {
+  // Build ascending scale from root in octave 4
+  let notes=pitches.map(pc=>{let m=5*12+pc; if(m<5*12+rootPc)m+=12; return m;});
+  notes.sort((a,b)=>a-b);
+  drawTrebleStaff('staffScaleTreble', notes);
+  // Bass: same pitch classes one octave lower
+  const bassNotes=notes.map(m=>m-12);
+  drawBassStaff('staffScaleBass', bassNotes);
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function buildSidebar() {
+  const sb=document.getElementById('sidebar');
+  const sections=[
+    {title:'Acordes', items:CHORD_TYPES.map(t=>({id:'chord_'+t.id,label:t.label,count:12,mode:'chord',typeId:t.id}))},
+    {title:'Escalas', items:SCALE_TYPES.map(t=>({id:'scale_'+t.id,label:t.label,count:12,mode:'scale',typeId:t.id}))},
+  ];
+  sections.forEach(sec=>{
+    const h=document.createElement('div'); h.className='sidebar-title'; h.textContent=sec.title;
+    sb.appendChild(h);
+    sec.items.forEach(item=>{
+      const b=document.createElement('button'); b.className='cat-btn'; b.id='cat_'+item.id;
+      b.innerHTML=item.label+'<span class="cat-count">12 '+(item.mode==='chord'?'acordes':'escalas')+'</span>';
+      b.onclick=()=>selectCategory(item);
+      sb.appendChild(b);
+    });
+  });
+}
+
+function selectCategory(item) {
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('cat_'+item.id);
+  if(btn) btn.classList.add('active');
+  if(item.mode==='chord'){
+    setMode('chord'); currentTypeId=item.typeId;
+    currentList=buildChordList(item.typeId, currentChordRoot); currentIndex=0;
+    document.getElementById('completionScreen').classList.remove('show');
+    document.getElementById('chordCard').style.display='';
+    loadChord(0);
+  } else {
+    setMode('scale'); currentScaleTypeId=item.typeId;
+    loadScale(currentScaleRoot, item.typeId);
+  }
+}
+
+// ============================================================
+// MODE
+// ============================================================
+function setMode(mode) {
+  currentMode=mode;
+  const modes=['chord','scale','dynamic','exam'];
+  modes.forEach(m => {
+    const el=document.getElementById(m==='chord'?'chordMode':m==='scale'?'scaleMode':m==='dynamic'?'dynamicMode':'examMode');
+    if(el) el.style.display=m===mode?'flex':'none';
+  });
+  document.querySelectorAll('.mode-tab').forEach((t,i)=>
+    t.classList.toggle('active', modes[i]===mode));
+  if(mode==='dynamic') showDynamicSetup();
+  if(mode==='exam') { examChordRoot=-1; buildExamRootSelector(); startExam(); }
+}
+
+// ============================================================
+// CHORD MODE
+// ============================================================
+function loadChord(idx) {
+  chordCorrect=false; pressedNotes.clear();
+  const c=currentList[idx];
+  document.getElementById('chordName').textContent=c.name;
+  document.getElementById('chordType').textContent=c.fullName;
+  document.getElementById('chordCard').className='chord-card';
+  document.getElementById('btnNext').classList.remove('visible');
+  document.getElementById('feedback').textContent='';
+  document.getElementById('feedback').className='feedback';
+  const pct=((idx+1)/currentList.length*100).toFixed(1);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent='Acorde '+(idx+1)+' de '+currentList.length;
+  drawChordStaff(c.displayNotes);
+  const label=document.getElementById('notesLabel');
+  label.innerHTML='Toca (cualquier octava): '+c.pitches.map(p=>'<span>'+ROOT_NAMES[p]+'</span>').join('');
+  highlightKeys('pianoKeyboard', c.pitches, pressedNotes);
+}
+
+function checkChord() {
+  if(chordCorrect) return;
+  const tgt=currentList[currentIndex].pitches;
+  const ppc=new Set([...pressedNotes].map(n=>n%12));
+  if(tgt.every(pc=>ppc.has(pc))&&[...ppc].every(pc=>tgt.includes(pc))){
+    chordCorrect=true;
+    document.getElementById('chordCard').classList.add('correct');
+    document.getElementById('feedback').textContent='Correcto! ';
+    document.getElementById('feedback').className='feedback correct';
+    document.getElementById('btnNext').classList.add('visible');
+  } else if(ppc.size>=tgt.length){
+    document.getElementById('chordCard').classList.add('wrong');
+    document.getElementById('feedback').textContent='Intenta de nuevo ';
+    document.getElementById('feedback').className='feedback wrong';
+    setTimeout(()=>{document.getElementById('chordCard').classList.remove('wrong');document.getElementById('feedback').textContent='';document.getElementById('feedback').className='feedback';},700);
+  }
+}
+
+function simulateCorrect(){
+  currentList[currentIndex].displayNotes.forEach(n=>pressedNotes.add(n));
+  checkChord(); highlightKeys('pianoKeyboard',currentList[currentIndex].pitches,pressedNotes);
+}
+
+function nextChord(){
+  currentIndex++;
+  if(currentIndex>=currentList.length){
+    document.getElementById('chordCard').style.display='none';
+    document.getElementById('completionScreen').classList.add('show'); return;
+  }
+  loadChord(currentIndex);
+}
+
+function restartCategory(){
+  currentIndex=0;
+  document.getElementById('chordCard').style.display='';
+  document.getElementById('completionScreen').classList.remove('show');
+  loadChord(0);
+}
+
+// ============================================================
+// SCALE MODE
+// ============================================================
+function buildChordRootSelector() {
+  const rs = document.getElementById('chordRootSelector');
+  // "Todos" button
+  const all = document.createElement('button');
+  all.className = 'root-btn active'; all.id = 'chordRootBtn_all';
+  all.textContent = 'Todas';
+  all.onclick = () => {
+    document.querySelectorAll('[id^=chordRootBtn_]').forEach(x => x.classList.remove('active'));
+    all.classList.add('active');
+    currentChordRoot = -1;
+    currentList = buildChordList(currentTypeId, -1);
+    currentIndex = 0;
+    document.getElementById('completionScreen').classList.remove('show');
+    document.getElementById('chordCard').style.display = '';
+    loadChord(0);
+  };
+  rs.appendChild(all);
+  ROOT_NAMES.forEach((name, i) => {
+    const b = document.createElement('button');
+    b.className = 'root-btn'; b.id = 'chordRootBtn_' + i;
+    b.textContent = name;
+    b.onclick = () => {
+      document.querySelectorAll('[id^=chordRootBtn_]').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      currentChordRoot = i;
+      currentList = buildChordList(currentTypeId, i);
+      currentIndex = 0;
+      document.getElementById('completionScreen').classList.remove('show');
+      document.getElementById('chordCard').style.display = '';
+      loadChord(0);
+    };
+    rs.appendChild(b);
+  });
+}
+
+function buildRootSelector() {
+  const rs=document.getElementById('rootSelector');
+  ROOT_NAMES.forEach((name,i)=>{
+    const b=document.createElement('button');
+    b.className='root-btn'; b.id='rootBtn_'+i; b.textContent=name;
+    b.onclick=()=>{
+      document.querySelectorAll('.root-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active'); loadScale(i,currentScaleTypeId);
+    };
+    rs.appendChild(b);
+  });
+}
+
+function loadScale(rootPc, typeId) {
+  currentScaleRoot=rootPc; currentScaleTypeId=typeId;
+  const st=SCALE_TYPES.find(s=>s.id===typeId);
+  const pitches=st.formula.map(iv=>(rootPc+iv)%12);
+  document.getElementById('scaleName').textContent=ROOT_NAMES[rootPc]+' '+st.label;
+  document.getElementById('scaleSubtitle').textContent='Escala '+st.label+' - '+ROOT_FULL[rootPc];
+  const degs=document.getElementById('scaleDegrees'); degs.innerHTML='';
+  pitches.forEach((pc,i)=>{
+    const pill=document.createElement('div'); pill.className='degree-pill';
+    pill.innerHTML='<span class="deg-num">'+st.degrees[i]+'</span><span class="deg-note">'+ROOT_NAMES[pc]+'</span>';
+    degs.appendChild(pill);
+  });
+  drawScaleStaff(pitches, rootPc);
+  highlightScaleKeys('pianoKeyboardScale', pitches);
+}
+
+// ============================================================
+// DYNAMIC MODE
+// ============================================================
+const PROGRESSIONS = [
+  // ii-V-I in major keys
+  { name:'ii-V-I', chords:[{type:'minor',deg:2},{type:'dom7',deg:7},{type:'major',deg:0}] },
+  // I-IV-V-I
+  { name:'I-IV-V-I', chords:[{type:'major',deg:0},{type:'major',deg:5},{type:'major',deg:7},{type:'major',deg:0}] },
+  // I-vi-ii-V
+  { name:'I-vi-ii-V', chords:[{type:'major',deg:0},{type:'minor',deg:9},{type:'minor',deg:2},{type:'dom7',deg:7}] },
+  // I-V-vi-IV
+  { name:'I-V-vi-IV', chords:[{type:'major',deg:0},{type:'major',deg:7},{type:'minor',deg:9},{type:'major',deg:5}] },
+];
+
+function showDynamicSetup() {
+  document.getElementById('dynamicSetup').style.display='block';
+  document.getElementById('dynamicPractice').style.display='none';
+  // Build type toggles
+  const ts=document.getElementById('dynamicTypeSelector'); ts.innerHTML='';
+  CHORD_TYPES.forEach(t=>{
+    const b=document.createElement('button');
+    b.className='type-toggle'+(dynSelectedTypes.has(t.id)?' selected':'');
+    b.textContent=t.label;
+    b.onclick=()=>{
+      if(dynSelectedTypes.has(t.id)&&dynSelectedTypes.size>1) dynSelectedTypes.delete(t.id);
+      else dynSelectedTypes.add(t.id);
+      b.classList.toggle('selected',dynSelectedTypes.has(t.id));
+    };
+    ts.appendChild(b);
+  });
+  // Build key toggles
+  const ks=document.getElementById('dynamicKeySelector'); ks.innerHTML='';
+  ROOT_NAMES.forEach((name,i)=>{
+    const b=document.createElement('button');
+    b.className='type-toggle'+(dynSelectedKeys.has(i)?' selected':'');
+    b.textContent=name;
+    b.onclick=()=>{
+      if(dynSelectedKeys.has(i)&&dynSelectedKeys.size>1) dynSelectedKeys.delete(i);
+      else dynSelectedKeys.add(i);
+      b.classList.toggle('selected',dynSelectedKeys.has(i));
+    };
+    ks.appendChild(b);
+  });
+}
+
+function setDynSeq(seq) {
+  dynSequence=seq;
+  document.getElementById('dynSeqRandom').classList.toggle('active',seq==='random');
+  document.getElementById('dynSeqProg').classList.toggle('active',seq==='prog');
+}
+
+function buildDynList() {
+  const keys=[...dynSelectedKeys];
+  const types=[...dynSelectedTypes];
+  const list=[];
+  if(dynSequence==='random') {
+    // 24 random chords from selected types+keys, shuffled
+    for(let i=0;i<24;i++){
+      const ri=keys[Math.floor(Math.random()*keys.length)];
+      const tid=types[Math.floor(Math.random()*types.length)];
+      list.push(makeChord(ri,tid,null,null));
+    }
+  } else {
+    // Pick 4 random keys, apply each progression
+    const shuffledKeys=[...keys].sort(()=>Math.random()-0.5).slice(0,4);
+    shuffledKeys.forEach(key=>{
+      const prog=PROGRESSIONS[Math.floor(Math.random()*PROGRESSIONS.length)];
+      prog.chords.forEach(cd=>{
+        const tid=types.includes(cd.type)?cd.type:types[0];
+        const ri=(key+cd.deg)%12;
+        list.push(makeChord(ri,tid,prog.name,cd.deg));
+      });
+    });
+  }
+  return list;
+}
+
+function makeChord(ri, typeId, progName, deg) {
+  const type=CHORD_TYPES.find(t=>t.id===typeId);
+  const pitches=type.formula.map(iv=>(ri+iv)%12);
+  const baseOct=ri>=8?4:5;
+  const rootMidi=baseOct*12+ri;
+  const displayNotes=type.formula.map(iv=>rootMidi+iv);
+  return {
+    name:ROOT_NAMES[ri]+type.short,
+    fullName:ROOT_FULL[ri]+' '+type.suffix,
+    pitches, displayNotes, progName, deg
+  };
+}
+
+function startDynamic() {
+  dynList=buildDynList(); dynIndex=0; dynCorrect=false; dynPressedNotes.clear();
+  document.getElementById('dynamicSetup').style.display='none';
+  document.getElementById('dynamicPractice').style.display='flex';
+  loadDynChord(0);
+}
+
+function loadDynChord(idx) {
+  dynCorrect=false; dynPressedNotes.clear();
+  const c=dynList[idx];
+  document.getElementById('dynChordName').textContent=c.name;
+  document.getElementById('dynChordType').textContent=c.fullName;
+  document.getElementById('dynChordCard').className='chord-card';
+  document.getElementById('dynBtnNext').classList.remove('visible');
+  document.getElementById('dynFeedback').textContent='';
+  document.getElementById('dynFeedback').className='feedback';
+  const pct=((idx+1)/dynList.length*100).toFixed(0);
+  document.getElementById('dynProgressFill').style.width=pct+'%';
+  document.getElementById('dynProgressLabel').textContent='Acorde '+(idx+1)+' de '+dynList.length;
+  // Progression badge
+  const badge=document.getElementById('dynProgBadge');
+  if(c.progName){ badge.style.display='block'; badge.innerHTML='<span style="color:var(--gold-light)">'+c.progName+'</span>'; }
+  else badge.style.display='none';
+  drawTrebleStaff('staffDynTreble',c.displayNotes);
+  drawBassStaff('staffDynBass',c.displayNotes);
+  const lbl=document.getElementById('dynNotesLabel');
+  lbl.innerHTML='Toca (cualquier octava): '+c.pitches.map(p=>'<span>'+ROOT_NAMES[p]+'</span>').join('');
+  highlightKeys('pianoKeyboardDyn',c.pitches,dynPressedNotes);
+}
+
+function checkDynChord() {
+  if(dynCorrect) return;
+  const tgt=dynList[dynIndex].pitches;
+  const ppc=new Set([...dynPressedNotes].map(n=>n%12));
+  if(tgt.every(pc=>ppc.has(pc))&&[...ppc].every(pc=>tgt.includes(pc))){
+    dynCorrect=true;
+    document.getElementById('dynChordCard').classList.add('correct');
+    document.getElementById('dynFeedback').textContent='¡Correcto! 🎉';
+    document.getElementById('dynFeedback').className='feedback correct';
+    document.getElementById('dynBtnNext').classList.add('visible');
+  } else if(ppc.size>=tgt.length){
+    document.getElementById('dynChordCard').classList.add('wrong');
+    document.getElementById('dynFeedback').textContent='Intenta de nuevo 🎵';
+    document.getElementById('dynFeedback').className='feedback wrong';
+    setTimeout(()=>{document.getElementById('dynChordCard').classList.remove('wrong');document.getElementById('dynFeedback').textContent='';document.getElementById('dynFeedback').className='feedback';},700);
+  }
+}
+
+function simulateDynCorrect(){
+  dynList[dynIndex].displayNotes.forEach(n=>dynPressedNotes.add(n));
+  checkDynChord(); highlightKeys('pianoKeyboardDyn',dynList[dynIndex].pitches,dynPressedNotes);
+}
+
+function nextDynChord(){
+  dynIndex++;
+  if(dynIndex>=dynList.length){ showDynamicSetup(); document.getElementById('dynamicSetup').style.display='block'; document.getElementById('dynamicPractice').style.display='none'; return; }
+  loadDynChord(dynIndex);
+}
+
+// ============================================================
+// EXAM MODE
+// ============================================================
+function buildExamRootSelector() {
+  const rs=document.getElementById('examRootSelector'); rs.innerHTML='';
+  const all=document.createElement('button');
+  all.className='root-btn'+(examChordRoot===-1?' active':''); all.textContent='Todas';
+  all.onclick=()=>{ examChordRoot=-1; document.querySelectorAll('[id^=examRootBtn_]').forEach(x=>x.classList.remove('active')); all.classList.add('active'); startExam(); };
+  rs.appendChild(all);
+  ROOT_NAMES.forEach((name,i)=>{
+    const b=document.createElement('button'); b.className='root-btn'+(examChordRoot===i?' active':'');
+    b.id='examRootBtn_'+i; b.textContent=name;
+    b.onclick=()=>{ examChordRoot=i; document.querySelectorAll('[id^=examRootBtn_],[id=examRootAll]').forEach(x=>x.classList.remove('active')); b.classList.add('active'); startExam(); };
+    rs.appendChild(b);
+  });
+}
+
+function startExam() {
+  // Build list from current chord type (or all types), filtered by root
+  examList=buildChordList(currentTypeId, examChordRoot);
+  // Shuffle
+  examList=examList.sort(()=>Math.random()-0.5);
+  examIndex=0; examScore=0; examCorrect=false; examPressedNotes.clear();
+  document.getElementById('examCard').style.display='';
+  document.getElementById('examCompletionScreen').classList.remove('show');
+  loadExamChord(0);
+}
+
+function loadExamChord(idx) {
+  examCorrect=false; examPressedNotes.clear();
+  const c=examList[idx];
+  document.getElementById('examChordName').textContent=c.name;
+  document.getElementById('examChordType').textContent=c.fullName;
+  document.getElementById('examCard').className='chord-card';
+  document.getElementById('examFeedback').textContent='';
+  document.getElementById('examFeedback').className='feedback';
+  document.getElementById('examNotesLabel').style.color='var(--surface)'; // hidden
+  document.getElementById('examNotesLabel').innerHTML='placeholder';
+  const pct=((idx+1)/examList.length*100).toFixed(0);
+  document.getElementById('examProgressFill').style.width=pct+'%';
+  document.getElementById('examProgressLabel').textContent='Acorde '+(idx+1)+' de '+examList.length;
+  // Draw EMPTY staff (lines only, no notes)
+  document.getElementById('examStaffEmpty').style.display='';
+  document.getElementById('examStaffReveal').style.display='none';
+  drawEmptyStaff('staffExamEmptyT','treble');
+  drawEmptyStaff('staffExamEmptyB','bass');
+  // Clear keyboard
+  document.getElementById('pianoKeyboardExam').querySelectorAll('.white-key,.black-key').forEach(k=>k.classList.remove('highlight','pressed','wrong-press'));
+}
+
+function drawEmptyStaff(svgId, clefType) {
+  const svg=document.getElementById(svgId); svg.innerHTML='';
+  const W=460,H=130,ls=10,sb=75,st=sb-4*ls;
+  drawStaffLines(svg,sb,ls,W);
+  const clef=document.createElementNS('http://www.w3.org/2000/svg','text');
+  if(clefType==='treble'){
+    clef.setAttribute('x','8'); clef.setAttribute('y',(sb+14)+'');
+    clef.setAttribute('font-size','80'); clef.textContent='\u{1D11E}';
+  } else {
+    clef.setAttribute('x','10'); clef.setAttribute('y',(sb-ls*1.5)+'');
+    clef.setAttribute('font-size','52'); clef.textContent='\u{1D122}';
+  }
+  clef.setAttribute('fill','#7a7a9a'); clef.setAttribute('font-family','serif');
+  svg.appendChild(clef);
+  // Question mark hint
+  const hint=document.createElementNS('http://www.w3.org/2000/svg','text');
+  hint.setAttribute('x','240'); hint.setAttribute('y','55');
+  hint.setAttribute('text-anchor','middle'); hint.setAttribute('font-size','28');
+  hint.setAttribute('fill','#2a2a3d'); hint.setAttribute('font-family','Playfair Display, serif');
+  hint.textContent='?';
+  svg.appendChild(hint);
+}
+
+function checkExamChord() {
+  if(examCorrect) return;
+  const c=examList[examIndex];
+  const ppc=new Set([...examPressedNotes].map(n=>n%12));
+  if(c.pitches.every(pc=>ppc.has(pc))&&[...ppc].every(pc=>c.pitches.includes(pc))){
+    examCorrect=true; examScore++;
+    document.getElementById('examCard').classList.add('correct');
+    document.getElementById('examFeedback').textContent='¡Correcto! 🎉';
+    document.getElementById('examFeedback').className='feedback correct';
+    // Reveal staff with animation
+    document.getElementById('examStaffEmpty').style.display='none';
+    document.getElementById('examStaffReveal').style.display='';
+    document.getElementById('examStaffReveal').classList.add('reveal-anim');
+    drawTrebleStaff('staffExamTreble',c.displayNotes);
+    drawBassStaff('staffExamBass',c.displayNotes);
+    // Reveal notes label
+    const lbl=document.getElementById('examNotesLabel');
+    lbl.style.color='';
+    lbl.innerHTML='Notas: '+c.pitches.map(p=>'<span>'+ROOT_NAMES[p]+'</span>').join('');
+    // Highlight keys
+    highlightKeys('pianoKeyboardExam',c.pitches,examPressedNotes);
+    // Auto-advance after 2s so user can see the revealed staff
+    setTimeout(()=>{ if(examCorrect) nextExamChord(); }, 2000);
+  } else if(ppc.size>=c.pitches.length){
+    document.getElementById('examCard').classList.add('wrong');
+    document.getElementById('examFeedback').textContent='Intenta de nuevo 🎵';
+    document.getElementById('examFeedback').className='feedback wrong';
+    setTimeout(()=>{document.getElementById('examCard').classList.remove('wrong');document.getElementById('examFeedback').textContent='';document.getElementById('examFeedback').className='feedback';},700);
+  }
+}
+
+function simulateExamCorrect(){
+  examList[examIndex].displayNotes.forEach(n=>examPressedNotes.add(n));
+  checkExamChord(); highlightKeys('pianoKeyboardExam',examList[examIndex].pitches,examPressedNotes);
+}
+
+function nextExamChord(){
+  examIndex++;
+  if(examIndex>=examList.length){
+    document.getElementById('examCard').style.display='none';
+    document.getElementById('examCompletionScreen').classList.add('show');
+    document.getElementById('examScore').textContent='Resultado: '+examScore+' / '+examList.length;
+    const pct=Math.round(examScore/examList.length*100);
+    document.getElementById('examScoreDetail').textContent=pct>=90?'¡Excelente dominio!':pct>=70?'¡Muy bien! Sigue practicando.':'Repasa los acordes que fallaste.';
+    return;
+  }
+  loadExamChord(examIndex);
+}
+
+function restartExam(){ startExam(); }
+
+// ============================================================
+// MIDI
+// ============================================================
+function initMidi(){
+  if(!navigator.requestMIDIAccess){setMidiStatus('No soportado','error');return;}
+  navigator.requestMIDIAccess().then(a=>{midiAccess=a;connectMidi(a);a.onstatechange=()=>connectMidi(a);}).catch(()=>setMidiStatus('Permiso denegado','error'));
+}
+function connectMidi(a){
+  let n=0; for(let i of a.inputs.values()){i.onmidimessage=onMidi;n++;}
+  if(n>0)setMidiStatus(n+' dispositivo(s)','connected');
+  else setMidiStatus('Conecta tu piano MIDI','');
+}
+function setMidiStatus(msg,cls){
+  document.getElementById('midiBadge').className='midi-badge'+(cls?' '+cls:'');
+  document.getElementById('midiStatus').textContent=msg;
+}
+function onMidi(e){
+  const [st,note,vel]=e.data,cmd=st&0xf0;
+  if(cmd===0x90&&vel>0) noteOn(note);
+  else if(cmd===0x80||(cmd===0x90&&vel===0)) noteOff(note);
+}
+function noteOn(m){
+  if(currentMode==='chord'){ pressedNotes.add(m); checkChord(); highlightKeys('pianoKeyboard',currentList[currentIndex].pitches,pressedNotes); }
+  else if(currentMode==='dynamic'&&dynList.length){ dynPressedNotes.add(m); checkDynChord(); highlightKeys('pianoKeyboardDyn',dynList[dynIndex].pitches,dynPressedNotes); }
+  else if(currentMode==='exam'&&examList.length){ examPressedNotes.add(m); checkExamChord(); highlightKeys('pianoKeyboardExam',examList[examIndex].pitches,examPressedNotes); }
+}
+function noteOff(m){
+  if(currentMode==='chord'){ pressedNotes.delete(m); highlightKeys('pianoKeyboard',currentList[currentIndex].pitches,pressedNotes); }
+  else if(currentMode==='dynamic'&&dynList.length){ dynPressedNotes.delete(m); highlightKeys('pianoKeyboardDyn',dynList[dynIndex].pitches,dynPressedNotes); }
+  else if(currentMode==='exam'&&examList.length){ examPressedNotes.delete(m); highlightKeys('pianoKeyboardExam',examList[examIndex].pitches,examPressedNotes); }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+buildSidebar();
+buildChordRootSelector();
+buildRootSelector();
+buildKeyboard('pianoKeyboard');
+buildKeyboard('pianoKeyboardScale');
+buildKeyboard('pianoKeyboardDyn');
+buildKeyboard('pianoKeyboardExam');
+currentList=buildChordList('major');
+loadChord(0);
+document.getElementById('cat_chord_major').classList.add('active');
+loadScale(0,'major');
+document.getElementById('rootBtn_0').classList.add('active');
+initMidi();
+</script>
+</body>
+</html>
