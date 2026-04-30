@@ -600,23 +600,29 @@ function drawBassStaff(svgId, notes) {
   const e4ref=vsb+(absDia(43)-absDia(64))*(ls/2);
   drawStaffLines(svg,vsb,ls,W);
   const clef=document.createElementNS('http://www.w3.org/2000/svg','text');
-  clef.setAttribute('x','8'); clef.setAttribute('y',(vsb-2*ls+8)+'');
-  clef.setAttribute('font-size','42'); clef.setAttribute('fill','#7a7a9a');
+  clef.setAttribute('x','8'); clef.setAttribute('y',(vsb-2*ls+2)+'');
+  clef.setAttribute('font-size','52'); clef.setAttribute('fill','#7a7a9a');
   clef.setAttribute('font-family','serif'); clef.textContent='\u{1D122}';
   svg.appendChild(clef);
-  const tgt=52;
-  let bn=notes.map(m=>{const pc=m%12;let best=pc+12;for(let o=1;o<=4;o++){const c=o*12+pc;if(Math.abs(c-tgt)<Math.abs(best-tgt))best=c;}return best;});
-  bn.sort((a,b)=>a-b);
-  const bassFormula=bn.map(m=>m-bn[0]);
-  const bassDias=correctDias(bn[0],bassFormula);
+  // Step 1: treble diatonic positions (correct enharmonic spelling from chord root)
+  const trebleFormula=notes.map(m=>m-notes[0]);
+  const trebleDias=correctDias(notes[0],trebleFormula);
+  // Step 2: anchor bass root near C3(48), build chord ascending
+  const rootPc=notes[0]%12;
+  let rootBass=rootPc+12;
+  for(let o=1;o<=5;o++){const c=o*12+rootPc;if(Math.abs(c-48)<Math.abs(rootBass-48))rootBass=c;}
+  const semis=notes.map(m=>m-notes[0]);
+  let bn=semis.map(iv=>rootBass+iv);
+  for(let i=1;i<bn.length;i++) if(bn[i]<=bn[i-1]) bn[i]+=12;
+  // Step 3: bass diatonic positions = treble dias shifted by octave
+  const bd=bn.map((bm,i)=>trebleDias[i]+Math.round((bm-notes[i])/12)*7);
   const xs=bn.length<=4?[145,215,285,355]:null;
   const startX=85, sp=(W-startX-20)/bn.length;
   bn.forEach((m,i)=>{
     const x=xs?xs[i]:startX+i*sp+sp/2;
-    drawNote(svg,m,x,e4ref,vsb,st,ls,H,false,bassDias[i]);
+    drawNote(svg,m,x,e4ref,vsb,st,ls,H,false,bd[i]);
   });
 }
-
 function drawStackedTreble(svgId, notes) {
   const svg=document.getElementById(svgId); svg.innerHTML='';
   const W=460,H=180,ls=14,sb=115,st=sb-4*ls;
@@ -645,23 +651,26 @@ function drawStackedBass(svgId, notes) {
   const e4ref=vsb+(absDia(43)-absDia(64))*(ls/2);
   drawStaffLines(svg,vsb,ls,W);
   const clef=document.createElementNS('http://www.w3.org/2000/svg','text');
-  clef.setAttribute('x','8'); clef.setAttribute('y',(vsb-2*ls+8)+'');
-  clef.setAttribute('font-size','42'); clef.setAttribute('fill','#7a7a9a');
+  clef.setAttribute('x','8'); clef.setAttribute('y',(vsb-2*ls+2)+'');
+  clef.setAttribute('font-size','52'); clef.setAttribute('fill','#7a7a9a');
   clef.setAttribute('font-family','serif'); clef.textContent='\u{1D122}';
   svg.appendChild(clef);
-  const tgt=52;
-  let bn=notes.map(m=>{const pc=m%12;let best=pc+12;for(let o=1;o<=4;o++){const c=o*12+pc;if(Math.abs(c-tgt)<Math.abs(best-tgt))best=c;}return best;});
-  bn.sort((a,b)=>a-b);
-  const bassFormula2=bn.map(m=>m-bn[0]);
-  const bassDias2=correctDias(bn[0],bassFormula2);
+  const trebleFormula=notes.map(m=>m-notes[0]);
+  const trebleDias=correctDias(notes[0],trebleFormula);
+  const rootPc=notes[0]%12;
+  let rootBass=rootPc+12;
+  for(let o=1;o<=5;o++){const c=o*12+rootPc;if(Math.abs(c-48)<Math.abs(rootBass-48))rootBass=c;}
+  const semis=notes.map(m=>m-notes[0]);
+  let bn=semis.map(iv=>rootBass+iv);
+  for(let i=1;i<bn.length;i++) if(bn[i]<=bn[i-1]) bn[i]+=12;
+  const bd=bn.map((bm,i)=>trebleDias[i]+Math.round((bm-notes[i])/12)*7);
   const baseX=240;
   bn.forEach((m,i)=>{
-    const isAdj = i>0 && Math.abs(bassDias2[i]-bassDias2[i-1])<=1;
-    const x = isAdj ? baseX+14 : baseX;
-    drawNote(svg,m,x,e4ref,vsb,st,ls,H,false,bassDias2[i]);
+    const isAdj=i>0&&Math.abs(bd[i]-bd[i-1])<=1;
+    const x=isAdj?baseX+14:baseX;
+    drawNote(svg,m,x,e4ref,vsb,st,ls,H,false,bd[i]);
   });
 }
-
 function drawChordStaff(notes) {
   drawTrebleStaff('staffTreble', notes);
   drawBassStaff('staffBass', notes);
